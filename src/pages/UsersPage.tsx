@@ -4,6 +4,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import VisibilityIcon from "@mui/icons-material/Visibility";
+import LockIcon from "@mui/icons-material/Lock";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
@@ -15,7 +16,6 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import { useFetch } from "../hooks/useFetch";
 
 const baseUrl = "https://d3ujwk09smrk9z.cloudfront.net";
 const tasksUrl = `${baseUrl}/tasks`;
@@ -31,26 +31,55 @@ interface Task {
 }
 
 function TasksPage() {
-  // Token de autorización por si la API lo requiere (Bearer Token)
-  const [token, setToken] = useState<string>("");
+  // Token precargado por defecto para evitar errores 401
+  const [token, setToken] = useState<string>(
+    "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhbmEiLCJyb2xlIjoiUk9MRV9VU0VSIiwiaWF0IjoxNzg4NDcwODIxLCJleHAiOjE3ODg0NzQ0MjF9.V3BURwF0T9HashnAYve_5hFoSr2gmjEL9ByHHZF2Rj9zwt473WqKTAsk7uHVLduXIAJ3nNHRdjtKal8z4x_29w"
+  );
   
-  const { data: fetchedTasks, loading, error } = useFetch<Task[]>(tasksUrl);
-
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
   const [search, setSearch] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [page, setPage] = useState<number>(1);
 
-  // Estados para el formulario POST (Crear tarea bajo un proyecto)
+  // Estados para el formulario POST
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
-  const [projectId, setProjectId] = useState("1"); // ID de proyecto por defecto para el POST
+  const [projectId, setProjectId] = useState("1");
+
+  const getHeaders = () => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token.trim()) {
+      headers["Authorization"] = `Bearer ${token.trim()}`;
+    }
+    return headers;
+  };
+
+  const fetchTasks = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(tasksUrl, { headers: getHeaders() });
+      if (response.status === 401) {
+        throw new Error("Token inválido o expirado (401 Unauthorized)");
+      }
+      if (!response.ok) throw new Error("Error al cargar las tareas");
+      const data = await response.json();
+      setTasks(data);
+    } catch (err: any) {
+      setError(err.message || "Error desconocido");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    if (fetchedTasks) {
-      setTasks(fetchedTasks);
-    }
-  }, [fetchedTasks]);
+    fetchTasks();
+  }, [token]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -63,39 +92,24 @@ function TasksPage() {
     setPage(1);
   }, [debouncedSearch]);
 
-  const getHeaders = () => {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (token.trim()) {
-      headers["Authorization"] = `Bearer ${token.trim()}`;
-    }
-    return headers;
-  };
-
-  // 1. GET /tasks/{id} (Obtiene una tarea por id de forma individual)
   const handleGetById = async (id: number | string) => {
     try {
-      const response = await fetch(`${tasksUrl}/${id}`, {
-        headers: getHeaders(),
-      });
+      const response = await fetch(`${tasksUrl}/${id}`, { headers: getHeaders() });
       if (!response.ok) throw new Error("Error al obtener la tarea");
       const taskData = await response.json();
-      alert(`Información obtenida (GET ID):\nTítulo: ${taskData.title || taskData.name || JSON.stringify(taskData)}`);
+      alert(`Información obtenida (GET ID):\n${JSON.stringify(taskData, null, 2)}`);
     } catch (err) {
       console.error(err);
-      alert("No se pudo obtener la tarea por ID (Verifica permisos o token)");
+      alert("No se pudo obtener la tarea por ID");
     }
   };
 
-  // 2. POST /projects/{projectId}/tasks (Crea una tarea dentro de un proyecto)
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) {
       alert("Escribe un título para la tarea");
       return;
     }
-
     try {
       const response = await fetch(`${baseUrl}/projects/${projectId}/tasks`, {
         method: "POST",
@@ -108,18 +122,16 @@ function TasksPage() {
       });
       if (!response.ok) throw new Error("Error al crear la tarea");
       const createdTask = await response.json();
-
       setTasks((prev) => [createdTask, ...prev]);
       setNewTitle("");
       setNewDesc("");
-      alert("Tarea creada con éxito bajo el proyecto (POST)");
+      alert("Tarea creada con éxito (POST)");
     } catch (err) {
       console.error(err);
-      alert("No se pudo crear la tarea (Verifica el ID del proyecto y token)");
+      alert("No se pudo crear la tarea");
     }
   };
 
-  // 3. PUT /tasks/{id} (Reemplaza una tarea por completo)
   const handleUpdatePut = async (taskToUpdate: Task) => {
     try {
       const completeData = {
@@ -127,7 +139,6 @@ function TasksPage() {
         title: taskToUpdate.title ? `${taskToUpdate.title} (Reemplazada PUT)` : "Tarea Reemplazada",
         description: "Actualización completa vía PUT",
       };
-
       const response = await fetch(`${tasksUrl}/${taskToUpdate.id}`, {
         method: "PUT",
         headers: getHeaders(),
@@ -135,18 +146,16 @@ function TasksPage() {
       });
       if (!response.ok) throw new Error("Error al reemplazar la tarea");
       const updatedTask = await response.json();
-
       setTasks((prev) =>
         prev.map((t) => (t.id === taskToUpdate.id ? { ...t, ...completeData, ...updatedTask } : t))
       );
       alert("Tarea reemplazada por completo (PUT)");
     } catch (err) {
       console.error(err);
-      alert("No se pudo reemplazar la tarea (PUT)");
+      alert("No se pudo reemplazar la tarea");
     }
   };
 
-  // 4. PATCH /tasks/{id}/status (Cambia el estado de una tarea)
   const handleUpdatePatchStatus = async (id: number | string) => {
     try {
       const response = await fetch(`${tasksUrl}/${id}/status`, {
@@ -156,18 +165,16 @@ function TasksPage() {
       });
       if (!response.ok) throw new Error("Error al cambiar estado");
       const updatedTask = await response.json();
-
       setTasks((prev) =>
         prev.map((t) => (t.id === id ? { ...t, ...updatedTask, status: "COMPLETED" } : t))
       );
-      alert("Estado de tarea cambiado a COMPLETED (PATCH)");
+      alert("Estado cambiado a COMPLETED (PATCH)");
     } catch (err) {
       console.error(err);
-      alert("No se pudo cambiar el estado (PATCH)");
+      alert("No se pudo cambiar el estado");
     }
   };
 
-  // 5. DELETE /tasks/{id} (Borra una tarea)
   const handleDelete = async (id: number | string) => {
     try {
       const response = await fetch(`${tasksUrl}/${id}`, {
@@ -175,7 +182,6 @@ function TasksPage() {
         headers: getHeaders(),
       });
       if (!response.ok) throw new Error("Error al eliminar la tarea");
-      
       setTasks((prev) => prev.filter((t) => t.id !== id));
       alert("Tarea borrada correctamente (DELETE)");
     } catch (err) {
@@ -183,18 +189,6 @@ function TasksPage() {
       alert("No se pudo borrar la tarea");
     }
   };
-
-  if (loading) {
-    return (
-      <Stack sx={{ alignItems: "center", padding: 5 }}>
-        <CircularProgress aria-label="Cargando tareas" />
-      </Stack>
-    );
-  }
-
-  if (error) {
-    return <Alert severity="error">{error}</Alert>;
-  }
 
   const normalizedSearch = debouncedSearch.trim().toLocaleLowerCase();
   const filteredTasks = tasks.filter((task) => {
@@ -212,15 +206,19 @@ function TasksPage() {
     <Stack spacing={3}>
       <Typography variant="h3" component="h1">Gestión de Tareas (Swagger)</Typography>
 
-      {/* Input opcional para el Token si la API requiere autenticación */}
-      <TextField
-        label="Token de Autenticación (Bearer Token opcional si da error 401)"
-        size="small"
-        value={token}
-        onChange={(e) => setToken(e.target.value)}
-      />
+      <Box sx={{ p: 2, border: "1px solid #ddd", borderRadius: 2, backgroundColor: "#fafafa" }}>
+        <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+          <LockIcon fontSize="small" /> Token JWT Activo
+        </Typography>
+        <TextField
+          label="Token de Autenticación"
+          size="small"
+          fullWidth
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+        />
+      </Box>
 
-      {/* Formulario POST para crear tarea bajo un proyecto */}
       <Box component="form" onSubmit={handleCreatePost} sx={{ p: 2, border: "1px solid #ccc", borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom>Crear Tarea en Proyecto (POST)</Typography>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -251,7 +249,6 @@ function TasksPage() {
         </Stack>
       </Box>
 
-      {/* Barra de búsqueda */}
       <TextField
         label="Buscar tarea por título o descripción"
         value={search}
@@ -265,10 +262,19 @@ function TasksPage() {
         }}
       />
 
-      {/* Listado de tareas */}
-      {filteredTasks.length === 0 ? (
+      {loading && (
+        <Stack sx={{ alignItems: "center", padding: 5 }}>
+          <CircularProgress aria-label="Cargando tareas" />
+        </Stack>
+      )}
+
+      {error && <Alert severity="error">{error}</Alert>}
+
+      {!loading && !error && filteredTasks.length === 0 && (
         <Alert severity="info">No hay tareas disponibles o no coinciden con la búsqueda.</Alert>
-      ) : (
+      )}
+
+      {!loading && filteredTasks.length > 0 && (
         <>
           <Stack spacing={2}>
             {visibleTasks.map((task) => (
@@ -278,42 +284,17 @@ function TasksPage() {
                   <Typography color="text.secondary">{task.description || "Sin descripción"}</Typography>
                   <Typography variant="body2" sx={{ mt: 1 }}>Estado: <strong>{task.status || "PENDING"}</strong> | ID: {task.id}</Typography>
                   
-                  {/* Botones para GET ID, PATCH, PUT y DELETE */}
                   <Stack direction="row" spacing={1.5} sx={{ mt: 2, flexWrap: "wrap" }}>
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
-                      color="info" 
-                      startIcon={<VisibilityIcon />}
-                      onClick={() => handleGetById(task.id)}
-                    >
+                    <Button variant="outlined" size="small" color="info" startIcon={<VisibilityIcon />} onClick={() => handleGetById(task.id)}>
                       GET ID
                     </Button>
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
-                      color="primary" 
-                      startIcon={<EditIcon />}
-                      onClick={() => handleUpdatePatchStatus(task.id)}
-                    >
+                    <Button variant="outlined" size="small" color="primary" startIcon={<EditIcon />} onClick={() => handleUpdatePatchStatus(task.id)}>
                       Estado (PATCH)
                     </Button>
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
-                      color="secondary" 
-                      startIcon={<EditIcon />}
-                      onClick={() => handleUpdatePut(task)}
-                    >
+                    <Button variant="outlined" size="small" color="secondary" startIcon={<EditIcon />} onClick={() => handleUpdatePut(task)}>
                       Reemplazar (PUT)
                     </Button>
-                    <Button 
-                      variant="outlined" 
-                      size="small" 
-                      color="error" 
-                      startIcon={<DeleteIcon />}
-                      onClick={() => handleDelete(task.id)}
-                    >
+                    <Button variant="outlined" size="small" color="error" startIcon={<DeleteIcon />} onClick={() => handleDelete(task.id)}>
                       Borrar (DELETE)
                     </Button>
                   </Stack>
