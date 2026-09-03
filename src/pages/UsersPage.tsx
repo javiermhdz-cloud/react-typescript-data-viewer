@@ -165,22 +165,28 @@ function UsersPage() {
     }
   };
 
-  const handleUpdatePatchStatus = async (id: number | string) => {
+const handleUpdatePatchStatus = async (id: number | string) => {
     try {
       const response = await fetch(`${tasksUrl}/${id}/status`, {
         method: "PATCH",
         headers: getHeaders(),
-        body: JSON.stringify({ status: "COMPLETED" }),
+        // Prueba con "IN_PROGRESS" o el estado que permita tu backend sin responsable
+        body: JSON.stringify({ status: "IN_PROGRESS" }),
       });
-      if (!response.ok) throw new Error("Error al cambiar estado");
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error ${response.status}: ${errorText || "No se pudo cambiar el estado"}`);
+      }
+
       const updatedTask = await response.json();
       setTasks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...updatedTask, status: "COMPLETED" } : t))
+        prev.map((t) => (t.id === id ? { ...t, ...updatedTask, status: "IN_PROGRESS" } : t))
       );
-      alert("Estado cambiado a COMPLETED (PATCH)");
-    } catch (err) {
+      alert("Estado cambiado a IN_PROGRESS con éxito (PATCH)");
+    } catch (err: any) {
       console.error(err);
-      alert("No se pudo cambiar el estado");
+      alert(err.message);
     }
   };
 
