@@ -32,8 +32,8 @@ interface Task {
 
 function PostsPage() {
   // AQUÍ ESTÁ TU TOKEN PEGADO DE FORMA FIJA (o puedes cambiarlo si genera uno nuevo)
-  const [token, setToken] = useState<string>(
-    () => localStorage.getItem("jwt_token") || "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhbmEiLCJyb2xlIjoiUk9MRV9VU0VSIiwiaWF0IjoxNzg4NDcwNDE0LCJleHAiOjE3ODg0NzQwMTR9.F7iMI6ZeyMp0UTYD2eIl_LjVvW-2U0_mbGN-URbRcd8CSHQM2j1M4pQoPnteIGkW3lv-dVp_6jhoUsSgok4EoA"
+const [token, setToken] = useState<string>(
+    "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhbmEiLCJyb2xlIjoiUk9MRV9VU0VSIiwiaWF0IjoxNzg4NDcwODIxLCJleHAiOjE3ODg0NzQ0MjF9.V3BURwF0T9HashnAYve_5hFoSr2gmjEL9ByHHZF2Rj9zwt473WqKTAsk7uHVLduXIAJ3nNHRdjtKal8z4x_29w"
   );
   
   const [tasks, setTasks] = useState<Task[]>([]);
