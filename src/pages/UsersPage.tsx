@@ -1,3 +1,4 @@
+// src/pages/UsersPage.tsx
 import { useEffect, useState } from "react";
 import SearchIcon from "@mui/icons-material/Search";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -30,10 +31,10 @@ interface Task {
   [key: string]: any;
 }
 
-function TasksPage() {
-  // Token precargado por defecto para evitar errores 401
+function UsersPage() {
   const [token, setToken] = useState<string>(
-    "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhbmEiLCJyb2xlIjoiUk9MRV9VU0VSIiwiaWF0IjoxNzg4NDcwODIxLCJleHAiOjE3ODg0NzQ0MjF9.V3BURwF0T9HashnAYve_5hFoSr2gmjEL9ByHHZF2Rj9zwt473WqKTAsk7uHVLduXIAJ3nNHRdjtKal8z4x_29w"
+    localStorage.getItem("jwt_token") ||
+      "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhbmEiLCJyb2xlIjoiUk9MRV9VU0VSIiwiaWF0IjoxNzg4NDcwODIxLCJleHAiOjE3ODg0NzQ0MjF9.V3BURwF0T9HashnAYve_5hFoSr2gmjEL9ByHHZF2Rj9zwt473WqKTAsk7uHVLduXIAJ3nNHRdjtKal8z4x_29w"
   );
   
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -44,7 +45,6 @@ function TasksPage() {
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [page, setPage] = useState<number>(1);
 
-  // Estados para el formulario POST
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [projectId, setProjectId] = useState("1");
@@ -60,6 +60,10 @@ function TasksPage() {
   };
 
   const fetchTasks = async () => {
+    if (!token.trim()) {
+      setTasks([]);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -75,6 +79,11 @@ function TasksPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveToken = (newToken: string) => {
+    setToken(newToken);
+    localStorage.setItem("jwt_token", newToken);
   };
 
   useEffect(() => {
@@ -97,7 +106,7 @@ function TasksPage() {
       const response = await fetch(`${tasksUrl}/${id}`, { headers: getHeaders() });
       if (!response.ok) throw new Error("Error al obtener la tarea");
       const taskData = await response.json();
-      alert(`Información obtenida (GET ID):\n${JSON.stringify(taskData, null, 2)}`);
+      alert(`Información (GET ID):\n${JSON.stringify(taskData, null, 2)}`);
     } catch (err) {
       console.error(err);
       alert("No se pudo obtener la tarea por ID");
@@ -136,8 +145,8 @@ function TasksPage() {
     try {
       const completeData = {
         ...taskToUpdate,
-        title: taskToUpdate.title ? `${taskToUpdate.title} (Reemplazada PUT)` : "Tarea Reemplazada",
-        description: "Actualización completa vía PUT",
+        title: taskToUpdate.title ? `${taskToUpdate.title} (Actualizada)` : "Tarea Actualizada",
+        description: "Modificada mediante PUT completo",
       };
       const response = await fetch(`${tasksUrl}/${taskToUpdate.id}`, {
         method: "PUT",
@@ -204,18 +213,18 @@ function TasksPage() {
 
   return (
     <Stack spacing={3}>
-      <Typography variant="h3" component="h1">Gestión de Tareas (Swagger)</Typography>
+      <Typography variant="h3" component="h1">Gestión de Tareas</Typography>
 
       <Box sx={{ p: 2, border: "1px solid #ddd", borderRadius: 2, backgroundColor: "#fafafa" }}>
         <Typography variant="h6" sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
           <LockIcon fontSize="small" /> Token JWT Activo
         </Typography>
         <TextField
-          label="Token de Autenticación"
+          label="Token JWT (puedes cambiarlo aquí si expira)"
           size="small"
           fullWidth
           value={token}
-          onChange={(e) => setToken(e.target.value)}
+          onChange={(e) => handleSaveToken(e.target.value)}
         />
       </Box>
 
@@ -223,14 +232,14 @@ function TasksPage() {
         <Typography variant="h6" gutterBottom>Crear Tarea en Proyecto (POST)</Typography>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
           <TextField
-            label="ID de Proyecto"
+            label="ID Proyecto"
             size="small"
             value={projectId}
             onChange={(e) => setProjectId(e.target.value)}
-            sx={{ width: { sm: "150px" } }}
+            sx={{ width: { sm: "130px" } }}
           />
           <TextField
-            label="Título de la tarea"
+            label="Título"
             size="small"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
@@ -250,6 +259,7 @@ function TasksPage() {
       </Box>
 
       <TextField
+        fullWidth
         label="Buscar tarea por título o descripción"
         value={search}
         onChange={(event) => setSearch(event.target.value)}
@@ -282,7 +292,9 @@ function TasksPage() {
                 <CardContent>
                   <Typography variant="h6">{task.title || task.name || "Sin título"}</Typography>
                   <Typography color="text.secondary">{task.description || "Sin descripción"}</Typography>
-                  <Typography variant="body2" sx={{ mt: 1 }}>Estado: <strong>{task.status || "PENDING"}</strong> | ID: {task.id}</Typography>
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    Estado: <strong>{task.status || "PENDING"}</strong> | ID: {task.id}
+                  </Typography>
                   
                   <Stack direction="row" spacing={1.5} sx={{ mt: 2, flexWrap: "wrap" }}>
                     <Button variant="outlined" size="small" color="info" startIcon={<VisibilityIcon />} onClick={() => handleGetById(task.id)}>
@@ -311,4 +323,4 @@ function TasksPage() {
   );
 }
 
-export default TasksPage;
+export default UsersPage;
