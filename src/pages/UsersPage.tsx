@@ -17,6 +17,7 @@ import Stack from "@mui/material/Stack";
 import TextField from "@mui/material/TextField";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
+import MenuItem from "@mui/material/MenuItem";
 
 const baseUrl = "https://d3ujwk09smrk9z.cloudfront.net";
 const tasksUrl = `${baseUrl}/tasks`;
@@ -59,6 +60,7 @@ function UsersPage() {
     return headers;
   };
 
+  // GET /tasks (Lista tareas)
   const fetchTasks = async () => {
     if (!token.trim()) {
       setTasks([]);
@@ -101,18 +103,20 @@ function UsersPage() {
     setPage(1);
   }, [debouncedSearch]);
 
+  // GET /tasks/{id} (Obtiene una tarea por id)
   const handleGetById = async (id: number | string) => {
     try {
       const response = await fetch(`${tasksUrl}/${id}`, { headers: getHeaders() });
       if (!response.ok) throw new Error("Error al obtener la tarea");
       const taskData = await response.json();
-      alert(`Información (GET ID):\n${JSON.stringify(taskData, null, 2)}`);
+      alert(`Información (GET /tasks/${id}):\n${JSON.stringify(taskData, null, 2)}`);
     } catch (err) {
       console.error(err);
       alert("No se pudo obtener la tarea por ID");
     }
   };
 
+  // POST /projects/{projectId}/tasks (Crea una tarea dentro de un proyecto)
   const handleCreatePost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) {
@@ -126,7 +130,7 @@ function UsersPage() {
         body: JSON.stringify({
           title: newTitle,
           description: newDesc,
-          status: "PENDING",
+          status: "TODO",
         }),
       });
       if (!response.ok) throw new Error("Error al crear la tarea");
@@ -141,12 +145,16 @@ function UsersPage() {
     }
   };
 
+  // PUT /tasks/{id} (Reemplaza una tarea por completo)
   const handleUpdatePut = async (taskToUpdate: Task) => {
+    const updatedTitle = prompt("Nuevo título completo:", taskToUpdate.title || "") ?? taskToUpdate.title;
+    const updatedDesc = prompt("Nueva descripción completa:", taskToUpdate.description || "") ?? taskToUpdate.description;
+
     try {
       const completeData = {
         ...taskToUpdate,
-        title: taskToUpdate.title ? `${taskToUpdate.title} (Actualizada)` : "Tarea Actualizada",
-        description: "Modificada mediante PUT completo",
+        title: updatedTitle,
+        description: updatedDesc,
       };
       const response = await fetch(`${tasksUrl}/${taskToUpdate.id}`, {
         method: "PUT",
@@ -165,13 +173,13 @@ function UsersPage() {
     }
   };
 
-const handleUpdatePatchStatus = async (id: number | string) => {
+  // PATCH /tasks/{id}/status (Cambia el estado de una tarea)
+  const handleUpdatePatchStatus = async (id: number | string, newStatus: string) => {
     try {
       const response = await fetch(`${tasksUrl}/${id}/status`, {
         method: "PATCH",
         headers: getHeaders(),
-        // Prueba con "IN_PROGRESS" o el estado que permita tu backend sin responsable
-        body: JSON.stringify({ status: "IN_PROGRESS" }),
+        body: JSON.stringify({ status: newStatus }),
       });
 
       if (!response.ok) {
@@ -181,16 +189,18 @@ const handleUpdatePatchStatus = async (id: number | string) => {
 
       const updatedTask = await response.json();
       setTasks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, ...updatedTask, status: "IN_PROGRESS" } : t))
+        prev.map((t) => (t.id === id ? { ...t, ...updatedTask, status: newStatus } : t))
       );
-      alert("Estado cambiado a IN_PROGRESS con éxito (PATCH)");
+      alert(`Estado cambiado a ${newStatus} con éxito (PATCH)`);
     } catch (err: any) {
       console.error(err);
       alert(err.message);
     }
   };
 
+  // DELETE /tasks/{id} (Borra una tarea)
   const handleDelete = async (id: number | string) => {
+    if (!window.confirm("¿Estás seguro de eliminar esta tarea?")) return;
     try {
       const response = await fetch(`${tasksUrl}/${id}`, {
         method: "DELETE",
@@ -226,7 +236,7 @@ const handleUpdatePatchStatus = async (id: number | string) => {
           <LockIcon fontSize="small" /> Token JWT Activo
         </Typography>
         <TextField
-          label="Token JWT (puedes cambiarlo aquí si expira)"
+          label="Token JWT"
           size="small"
           fullWidth
           value={token}
@@ -234,6 +244,7 @@ const handleUpdatePatchStatus = async (id: number | string) => {
         />
       </Box>
 
+      {/* POST /projects/{projectId}/tasks */}
       <Box component="form" onSubmit={handleCreatePost} sx={{ p: 2, border: "1px solid #ccc", borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom>Crear Tarea en Proyecto (POST)</Typography>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
@@ -299,19 +310,38 @@ const handleUpdatePatchStatus = async (id: number | string) => {
                   <Typography variant="h6">{task.title || task.name || "Sin título"}</Typography>
                   <Typography color="text.secondary">{task.description || "Sin descripción"}</Typography>
                   <Typography variant="body2" sx={{ mt: 1 }}>
-                    Estado: <strong>{task.status || "PENDING"}</strong> | ID: {task.id}
+                    Estado actual: <strong>{task.status || "TODO"}</strong> | ID: {task.id}
                   </Typography>
                   
-                  <Stack direction="row" spacing={1.5} sx={{ mt: 2, flexWrap: "wrap" }}>
+                  <Stack direction="row" spacing={1.5} sx={{ mt: 2, flexWrap: "wrap", alignItems: "center" }}>
+                    {/* GET /tasks/{id} */}
                     <Button variant="outlined" size="small" color="info" startIcon={<VisibilityIcon />} onClick={() => handleGetById(task.id)}>
                       GET ID
                     </Button>
-                    <Button variant="outlined" size="small" color="primary" startIcon={<EditIcon />} onClick={() => handleUpdatePatchStatus(task.id)}>
-                      Estado (PATCH)
-                    </Button>
+
+                    {/* PATCH /tasks/{id}/status */}
+                    <TextField
+                      select
+                      label="Cambiar Estado (PATCH)"
+                      size="small"
+                      value=""
+                      onChange={(e) => {
+                        if (e.target.value) handleUpdatePatchStatus(task.id, e.target.value);
+                      }}
+                      sx={{ minWidth: 160 }}
+                    >
+                      <MenuItem value="" disabled>Seleccionar estado</MenuItem>
+                      <MenuItem value="TODO">TODO</MenuItem>
+                      <MenuItem value="IN_PROGRESS">IN_PROGRESS</MenuItem>
+                      <MenuItem value="DONE">DONE</MenuItem>
+                    </TextField>
+
+                    {/* PUT /tasks/{id} */}
                     <Button variant="outlined" size="small" color="secondary" startIcon={<EditIcon />} onClick={() => handleUpdatePut(task)}>
                       Reemplazar (PUT)
                     </Button>
+
+                    {/* DELETE /tasks/{id} */}
                     <Button variant="outlined" size="small" color="error" startIcon={<DeleteIcon />} onClick={() => handleDelete(task.id)}>
                       Borrar (DELETE)
                     </Button>
