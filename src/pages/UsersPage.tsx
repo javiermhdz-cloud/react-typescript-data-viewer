@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import SearchIcon from "@mui/icons-material/Search";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EditIcon from "@mui/icons-material/Edit";
 import Alert from "@mui/material/Alert";
+import Button from "@mui/material/Button";
 import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -16,11 +19,18 @@ const usersUrl = "https://jsonplaceholder.typicode.com/users";
 const usersPerPage = 4;
 
 function UsersPage() {
-  const { data: users, loading, error } = useFetch<User[]>(usersUrl);
+  const { data: fetchedUsers, loading, error } = useFetch<User[]>(usersUrl);
 
+  const [users, setUsers] = useState<User[]>([]);
   const [search, setSearch] = useState<string>("");
   const [debouncedSearch, setDebouncedSearch] = useState<string>("");
   const [page, setPage] = useState<number>(1);
+
+  useEffect(() => {
+    if (fetchedUsers) {
+      setUsers(fetchedUsers);
+    }
+  }, [fetchedUsers]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -33,7 +43,66 @@ function UsersPage() {
     setPage(1);
   }, [debouncedSearch]);
 
-if (loading) {
+  const handleDelete = async (id: number) => {
+    try {
+      const response = await fetch(`${usersUrl}/${id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Error al eliminar");
+      
+      setUsers((prevUsers) => prevUsers.filter((user) => user.id !== id));
+      alert("Usuario eliminado correctamente (DELETE)");
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo eliminar el usuario");
+    }
+  };
+
+  const handleUpdatePatch = async (id: number) => {
+    try {
+      const response = await fetch(`${usersUrl}/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "Actualizado (PATCH)" }),
+      });
+      if (!response.ok) throw new Error("Error al actualizar");
+      const updatedUser = await response.json();
+
+      setUsers((prevUsers) =>
+        prevUsers.map((user) => (user.id === id ? { ...user, ...updatedUser } : user))
+      );
+      alert("Usuario actualizado parcialmente (PATCH)");
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo actualizar el usuario");
+    }
+  };
+
+  // --- IMPLEMENTACIÓN DE PUT ---
+  const handleUpdatePut = async (userToUpdate: User) => {
+    try {
+      const completeData = {
+        ...userToUpdate,
+        name: "Nombre Completo (PUT)",
+      };
+
+      const response = await fetch(`${usersUrl}/${userToUpdate.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(completeData),
+      });
+      if (!response.ok) throw new Error("Error al actualizar con PUT");
+      const updatedUser = await response.json();
+
+      setUsers((prevUsers) =>
+        prevUsers.map((user) => (user.id === userToUpdate.id ? updatedUser : user))
+      );
+      alert("Usuario actualizado por completo (PUT)");
+    } catch (err) {
+      console.error(err);
+      alert("No se pudo actualizar el usuario con PUT");
+    }
+  };
+
+  if (loading) {
     return (
       <Stack sx={{ alignItems: "center", padding: 5 }}>
         <CircularProgress aria-label="Cargando usuarios" />
@@ -86,6 +155,36 @@ if (loading) {
                   <Typography color="text.secondary">@{user.username}</Typography>
                   <Typography>{user.email}</Typography>
                   <Typography>{user.phone}</Typography>
+                  
+                  <Stack direction="row" spacing={2} sx={{ mt: 2, flexWrap: "wrap" }}>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      color="primary" 
+                      startIcon={<EditIcon />}
+                      onClick={() => handleUpdatePatch(user.id)}
+                    >
+                      Editar (PATCH)
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      color="secondary" 
+                      startIcon={<EditIcon />}
+                      onClick={() => handleUpdatePut(user)}
+                    >
+                      Editar (PUT)
+                    </Button>
+                    <Button 
+                      variant="outlined" 
+                      size="small" 
+                      color="error" 
+                      startIcon={<DeleteIcon />}
+                      onClick={() => handleDelete(user.id)}
+                    >
+                      Eliminar (DELETE)
+                    </Button>
+                  </Stack>
                 </CardContent>
               </Card>
             ))}
