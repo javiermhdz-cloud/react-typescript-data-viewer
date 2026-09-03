@@ -1,20 +1,18 @@
-import Alert from "@mui/material/Alert";
-import { Navigate, Route, Routes } from "react-router-dom";
+// src/App.tsx
+import { Routes, Route, Navigate } from "react-router-dom";
 import AppLayout from "./layouts/AppLayout";
-import PostsPage from "./pages/PostsPage";
 import UsersPage from "./pages/UsersPage";
+import PostsPage from "./pages/PostsPage";
+// import NotFoundPage from "./pages/NotFoundPage"; // si tienes tu componente de error
 
 function App() {
   return (
     <Routes>
-      <Route element={<AppLayout />}>
+      <Route path="/" element={<AppLayout />}>
         <Route index element={<Navigate to="/users" replace />} />
         <Route path="users" element={<UsersPage />} />
         <Route path="posts" element={<PostsPage />} />
-        <Route
-          path="*"
-          element={<Alert severity="warning">La página solicitada no existe.</Alert>}
-        />
+        {/* <Route path="*" element={<NotFoundPage />} /> */}
       </Route>
     </Routes>
   );
