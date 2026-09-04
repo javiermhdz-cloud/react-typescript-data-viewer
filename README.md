@@ -62,5 +62,3 @@ La aplicación se comunica con la API REST remota mediante la siguiente URL base
 const baseUrl = "https://d3ujwk09smrk9z.cloudfront.net";
 
 ```
-
-Asegúrate de ingresar un Token JWT válido en el panel superior de la interfaz para autorizar correctamente las peticiones HTTP protegidas.
