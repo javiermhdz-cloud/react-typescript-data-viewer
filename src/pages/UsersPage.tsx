@@ -35,7 +35,7 @@ interface Task {
 function UsersPage() {
   const [token, setToken] = useState<string>(
     localStorage.getItem("jwt_token") ||
-      "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhbmEiLCJyb2xlIjoiUk9MRV9VU0VSIiwiaWF0IjoxNzg4NDcwODIxLCJleHAiOjE3ODg0NzQ0MjF9.V3BURwF0T9HashnAYve_5hFoSr2gmjEL9ByHHZF2Rj9zwt473WqKTAsk7uHVLduXIAJ3nNHRdjtKal8z4x_29w"
+      "eyJhbGciOiJIUzUxMiJ9.eyJzdWIiOiJhbmEiLCJyb2xlIjoiUk9MRV9VU0VSIiwiaWF0IjoxNzg4NTI4NTk2LCJleHAiOjE3ODg1MzIxOTZ9.zDnCIQQUPePxDa79Zl7gi_YWhaCCQenBKAaxRCsH9CD6UNhYm8kSCMpJVa41qKFb-FbgL2sv6O6zcyC_DR7cKw"
   );
   
   const [tasks, setTasks] = useState<Task[]>([]);
